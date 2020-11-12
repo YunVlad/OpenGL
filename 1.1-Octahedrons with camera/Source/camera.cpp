@@ -15,10 +15,11 @@ camera::camera(glm::vec3 pos, glm::vec3 up, float yaw, float pitch)
 void camera::updateCamera()
 {
     glm::vec3 direction;
-    direction.x = cos(glm::radians(angleYaw)) * cos(glm::radians(angleYaw));
+    direction.x = cos(glm::radians(angleYaw)) * cos(glm::radians(anglePitch));
     direction.y = sin(glm::radians(anglePitch));
     direction.z = sin(glm::radians(angleYaw)) * cos(glm::radians(anglePitch));
     cameraFront = glm::normalize(direction);
+    //std::cout << angleYaw << " " << anglePitch  << std::endl;
 
     cameraRight = glm::normalize(glm::cross(cameraFront, worldUp));
     cameraUp = glm::normalize(glm::cross(cameraRight, cameraFront));
