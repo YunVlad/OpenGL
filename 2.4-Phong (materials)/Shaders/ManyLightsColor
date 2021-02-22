@@ -1,0 +1,57 @@
+#version 330 core
+
+out vec3 color;
+
+struct pointLight 
+{
+    vec3 pos;
+    vec3 color;
+    vec3 atten;
+    float diff;
+    float spec;
+};
+
+struct materialType
+{
+    vec3 diffuse;
+    vec3 specular;
+    float shininess;
+};
+
+#define NR_LIGHTS 2
+
+in vec3 norma;
+in vec3 currPos;
+
+uniform vec3 viewPos;
+uniform materialType material;
+uniform pointLight lights[NR_LIGHTS];
+
+vec3 addPointLight(pointLight light, vec3 norm, vec3 currPos, vec3 viewDir)
+{
+    vec3 lightDir = normalize(light.pos - currPos);
+    vec3 reflectDir = reflect(-lightDir, norm); 
+
+    float diff = max(dot(norm, lightDir), 0.0);
+    float spec = pow(max(dot(viewDir, reflectDir), 0.0), 128*material.shininess);
+
+    float distance = length(light.pos - currPos);
+    float attenuation = 1.0 / (light.atten.x + light.atten.y * distance + light.atten.z * (distance * distance));
+
+    vec3 diffuseLight = diff * light.diff * light.color * material.diffuse;
+    vec3 specularLight = spec * light.spec * light.color * material.specular;
+
+    return (diffuseLight + specularLight)*attenuation;
+}
+ 
+void main()
+{
+
+	vec3 norm = normalize(norma);
+	vec3 viewDir = normalize(viewPos - currPos);
+
+    color = addPointLight(lights[0], norm, currPos, viewDir);
+    for (int i = 1; i < NR_LIGHTS; i++)
+        color += addPointLight(lights[i], norm, currPos, viewDir);
+
+};
