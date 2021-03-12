@@ -8,7 +8,6 @@
 #include <iostream>
 
 #include "shader.h"
-#include "helper.h"
 
 int main()
 {
