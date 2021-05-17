@@ -1,0 +1,69 @@
+#version 330 core
+
+out vec3 color;
+
+uniform samplerCube shadowMap;
+uniform sampler2D textureMap;
+
+struct pointLight 
+{
+    vec3 pos;
+    vec3 color;
+    vec3 atten;
+    float diff;
+    float spec;
+};
+
+#define NR_LIGHTS 1
+
+in vec3 norma;
+in vec3 currPos;
+in vec2 tex;
+
+uniform vec3 viewPos;
+uniform float far_plane;
+uniform pointLight lights[NR_LIGHTS];
+
+float addShadow(vec3 currPos, vec3 lightPos)
+{
+    vec3 fragToLight = currPos - lightPos;   
+    float closestDepth = texture(shadowMap, fragToLight).r;
+    closestDepth *= far_plane;
+    float currentDepth = length(fragToLight);
+    float bias = 0.05;
+    float shadow = currentDepth -  bias > closestDepth ? 1.0 : 0.0;
+        
+    return shadow;
+}
+
+vec3 addPointLight(pointLight light, vec3 norm, vec3 currPos, vec3 viewDir, vec3 color)
+{
+    vec3 lightDir = normalize(light.pos - currPos);
+    vec3 reflectDir = reflect(-lightDir, norm); 
+
+    float diff = max(dot(norm, lightDir), 0.0);
+    float spec = pow(max(dot(viewDir, reflectDir), 0.0), 64);
+
+    float distance = length(light.pos - currPos);
+    float attenuation = 1.0 / (light.atten.x + light.atten.y * distance + light.atten.z * (distance * distance));
+
+    vec3 diffuseLight = diff * light.diff * light.color;
+    vec3 specularLight = spec * light.spec * light.color;
+
+    float shadow = addShadow(currPos, light.pos);
+    //float shadow = 0;
+
+    return (diffuseLight + specularLight)*attenuation*(1.0 - shadow);
+}
+ 
+void main()
+{
+
+    color = texture(textureMap, tex).rgb * 0.7;
+	vec3 norm = normalize(norma);
+	vec3 viewDir = normalize(viewPos - currPos);
+
+    for (int i = 0; i < NR_LIGHTS; i++)
+        color += addPointLight(lights[i], norm, currPos, viewDir, color);
+
+};
