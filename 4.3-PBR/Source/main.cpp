@@ -35,7 +35,7 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
     Camera.ProcessMouseMovement(xoffset, yoffset);
 }
 
-int main()
+int process()
 {
     GLFWwindow* window;
 
@@ -74,7 +74,6 @@ int main()
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     glEnable(GL_DEPTH_TEST);
-    //glEnable(GL_CULL_FACE);
 
     objectsRender render;
     unsigned int ventedTexture1 = render.loadTexture("PBR/vented/albedo.jpg");
@@ -114,11 +113,9 @@ int main()
     shaders.IntUniform("metallicMap", 4);
     shaders.IntUniform("roughnessMap", 5);
 
-
     while (!glfwWindowShouldClose(window))
     {
         float time = glfwGetTime();
-
         Camera.setCameraSpeed(time);
 
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
@@ -305,5 +302,11 @@ int main()
     }
 
     glfwTerminate();
+    return 0;
+}
+
+int main()
+{
+    process();
     return 0;
 }

@@ -35,7 +35,7 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
     Camera.ProcessMouseMovement(xoffset, yoffset);
 }
 
-int main()
+int process()
 {
     GLFWwindow* window;
 
@@ -53,7 +53,6 @@ int main()
     //glEnable(GL_CULL_FACE);
 
     objectsRender render;
-    render.sphereInit(32);
     unsigned int ventedTexture1 = render.loadTexture("PBR/vented/albedo.jpg");
     unsigned int ventedTexture2 = render.loadTexture("PBR/vented/ao.jpg");
     unsigned int ventedTexture3 = render.loadTexture("PBR/vented/normal.jpg");
@@ -331,5 +330,11 @@ int main()
     }
 
     glfwTerminate();
+    return 0;
+}
+
+int main()
+{
+    process();
     return 0;
 }

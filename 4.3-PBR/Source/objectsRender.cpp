@@ -9,6 +9,8 @@ objectsRender::objectsRender()
     sphereInd = sphereCreateInd(32);
 }
 
+objectsRender::~objectsRender(){}
+
 void objectsRender::cubeRender()
 {
     glGenVertexArrays(1, &VAO);
@@ -26,6 +28,10 @@ void objectsRender::cubeRender()
     glEnableVertexAttribArray(2);
 
     glDrawArrays(GL_TRIANGLES, 0, 36);
+
+    glDeleteVertexArrays(1, &VAO);
+    glDeleteBuffers(1, &VBO);
+
     glBindVertexArray(0);
 }
 
@@ -104,6 +110,11 @@ void objectsRender::sphereRender()
 
 
     glDrawElements(GL_TRIANGLE_STRIP, sphereInd.size(), GL_UNSIGNED_INT, 0);
+
+    glDeleteVertexArrays(1, &VAO);
+    glDeleteBuffers(1, &VBO);
+    glDeleteBuffers(1, &EBO);
+
     glBindVertexArray(0);
 }
 

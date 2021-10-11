@@ -18,6 +18,7 @@ class objectsRender
 
 public:
 	objectsRender();
+    ~objectsRender();
 
 	void cubeRender();
 
