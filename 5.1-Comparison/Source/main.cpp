@@ -247,7 +247,7 @@ int process()
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, beatenTexture1);
         glActiveTexture(GL_TEXTURE2);
-        glBindTexture(GL_TEXTURE_2D, beatenTexture2);
+        glBindTexture(GL_TEXTURE_2D, beatenTexture3);
         render.sphereRender();
 
         Pos = glm::vec3(currPos[0].x - 3, currPos[0].y, currPos[0].z);
@@ -257,7 +257,7 @@ int process()
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, ceramicTexture1);
         glActiveTexture(GL_TEXTURE2);
-        glBindTexture(GL_TEXTURE_2D, ceramicTexture2);
+        glBindTexture(GL_TEXTURE_2D, ceramicTexture3);
         render.sphereRender();
 
         Pos = glm::vec3(currPos[0].x - 3, currPos[0].y, currPos[0].z);
@@ -267,7 +267,7 @@ int process()
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, ventedTexture1);
         glActiveTexture(GL_TEXTURE2);
-        glBindTexture(GL_TEXTURE_2D, ventedTexture2);
+        glBindTexture(GL_TEXTURE_2D, ventedTexture3);
         render.sphereRender();
 
         // Texture

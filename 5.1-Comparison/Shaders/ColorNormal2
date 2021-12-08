@@ -62,7 +62,7 @@ vec3 addPointLight(pointLight light, vec3 norm, vec3 currPos, vec3 viewDir, vec3
 void main()
 {
 
-    color = texture(textureMap, tex).rgb * 0.7;
+    color = texture(textureMap, tex).rgb * 0.5;
     vec3 norm = getNormal();
 
 	vec3 viewDir = normalize(viewPos - currPos);
