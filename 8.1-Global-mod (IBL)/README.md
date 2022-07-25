@@ -1,3 +1,3 @@
-# OpenGL
+# Global (IBL-only)
 
-![](/preview.jpg)
+![](/8.1-Global-mod (IBL-only)/preview.jpg)

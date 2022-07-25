@@ -1,3 +1,3 @@
-# OpenGL
+# Global (IBL + PBR)
 
-![](/preview.jpg)
+![](/8.3-Global-mod (IBL+PBR)/preview.jpg)
