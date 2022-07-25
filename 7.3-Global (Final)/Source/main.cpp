@@ -35,13 +35,84 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
     Camera.ProcessMouseMovement(xoffset, yoffset);
 }
 
+GLenum glCheckError_(const char* file, int line)
+{
+    GLenum errorCode;
+    while ((errorCode = glGetError()) != GL_NO_ERROR)
+    {
+        std::string error;
+        switch (errorCode)
+        {
+        case GL_INVALID_ENUM:                  error = "INVALID_ENUM"; break;
+        case GL_INVALID_VALUE:                 error = "INVALID_VALUE"; break;
+        case GL_INVALID_OPERATION:             error = "INVALID_OPERATION"; break;
+        case GL_STACK_OVERFLOW:                error = "STACK_OVERFLOW"; break;
+        case GL_STACK_UNDERFLOW:               error = "STACK_UNDERFLOW"; break;
+        case GL_OUT_OF_MEMORY:                 error = "OUT_OF_MEMORY"; break;
+        case GL_INVALID_FRAMEBUFFER_OPERATION: error = "INVALID_FRAMEBUFFER_OPERATION"; break;
+        }
+        std::cout << error << " | " << file << " (" << line << ")" << std::endl;
+    }
+    return errorCode;
+}
+#define glCheckError() glCheckError_(__FILE__, __LINE__)
+
+void APIENTRY glDebugOutput(GLenum source,
+    GLenum type,
+    unsigned int id,
+    GLenum severity,
+    GLsizei length,
+    const char* message,
+    const void* userParam)
+{
+    if (id == 131169 || id == 131185 || id == 131218 || id == 131204) return;
+
+    std::cout << "---------------" << std::endl;
+    std::cout << "Debug message (" << id << "): " << message << std::endl;
+
+    switch (source)
+    {
+    case GL_DEBUG_SOURCE_API:             std::cout << "Source: API"; break;
+    case GL_DEBUG_SOURCE_WINDOW_SYSTEM:   std::cout << "Source: Window System"; break;
+    case GL_DEBUG_SOURCE_SHADER_COMPILER: std::cout << "Source: Shader Compiler"; break;
+    case GL_DEBUG_SOURCE_THIRD_PARTY:     std::cout << "Source: Third Party"; break;
+    case GL_DEBUG_SOURCE_APPLICATION:     std::cout << "Source: Application"; break;
+    case GL_DEBUG_SOURCE_OTHER:           std::cout << "Source: Other"; break;
+    } 
+    std::cout << std::endl;
+
+    switch (type)
+    {
+    case GL_DEBUG_TYPE_ERROR:               std::cout << "Type: Error"; break;
+    case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR: std::cout << "Type: Deprecated Behaviour"; break;
+    case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:  std::cout << "Type: Undefined Behaviour"; break;
+    case GL_DEBUG_TYPE_PORTABILITY:         std::cout << "Type: Portability"; break;
+    case GL_DEBUG_TYPE_PERFORMANCE:         std::cout << "Type: Performance"; break;
+    case GL_DEBUG_TYPE_MARKER:              std::cout << "Type: Marker"; break;
+    case GL_DEBUG_TYPE_PUSH_GROUP:          std::cout << "Type: Push Group"; break;
+    case GL_DEBUG_TYPE_POP_GROUP:           std::cout << "Type: Pop Group"; break;
+    case GL_DEBUG_TYPE_OTHER:               std::cout << "Type: Other"; break;
+    } 
+    std::cout << std::endl;
+
+    switch (severity)
+    {
+    case GL_DEBUG_SEVERITY_HIGH:         std::cout << "Severity: high"; break;
+    case GL_DEBUG_SEVERITY_MEDIUM:       std::cout << "Severity: medium"; break;
+    case GL_DEBUG_SEVERITY_LOW:          std::cout << "Severity: low"; break;
+    case GL_DEBUG_SEVERITY_NOTIFICATION: std::cout << "Severity: notification"; break;
+    } 
+    std::cout << std::endl;
+    std::cout << std::endl;
+}
+
 int process()
 {
     GLFWwindow* window;
 
     if (!glfwInit())
         return -1;
-    //glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, true);
+    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, true);
 
     window = glfwCreateWindow(1920, 1080, "OpenGL", NULL, NULL);
     glfwMakeContextCurrent(window);
@@ -50,7 +121,14 @@ int process()
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
 
-
+    int flags; glGetIntegerv(GL_CONTEXT_FLAGS, &flags);
+    if (flags & GL_CONTEXT_FLAG_DEBUG_BIT)
+    {
+        glEnable(GL_DEBUG_OUTPUT);
+        glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+        glDebugMessageCallback(glDebugOutput, nullptr);
+        glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
+    }
 
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
@@ -63,6 +141,17 @@ int process()
     std::vector<unsigned> mirrorTexture = render.loadPBRtextures("PBR/metalG");
     std::vector<unsigned> ceramicTexture = render.loadPBRtextures("PBR/ñeramicG");
 
+    std::vector<std::vector<unsigned>> texturePack;
+    texturePack.push_back(mirrorTexture);
+    texturePack.push_back(marbleTexture);
+    texturePack.push_back(goldTexture);
+    texturePack.push_back(ceramicTexture);
+
+    render.addTextureToPack(goldTexture);
+    render.addTextureToPack(marbleTexture);
+    render.addTextureToPack(mirrorTexture);
+    render.addTextureToPack(ceramicTexture);
+
     //Shaders configure
 
     shader lightShaders("Shaders/VertexLight", "Shaders/ColorLight");
@@ -72,14 +161,14 @@ int process()
     shader convShaders("Shaders/VertexStand", "Shaders/fConv");
     shader prefShaders("Shaders/VertexStand", "Shaders/fPrefilter");
     shader BRDFShaders("Shaders/VertexBRDF", "Shaders/fBRDF");
-    shader PBRshaders("Shaders/VertexPBR", "Shaders/fPBRspec");
+    shader PBRshaders("Shaders/VertexPBR", "Shaders/fPBRspecEnv");
 
     shader screenShaders("Shaders/VertexFrame","Shaders/fFrame");
     shader backEnvShaders("Shaders/VertexBack", "Shaders/fEnv");
     shader convEnvShaders("Shaders/VertexStand", "Shaders/fConv");
     shader prefEnvShaders("Shaders/VertexStand", "Shaders/fPrefilter");
     shader BRDFEnvShaders("Shaders/VertexBRDF", "Shaders/fBRDF");
-    shader PBREnvshaders("Shaders/VertexPBR", "Shaders/fPBRspecEnv");
+    shader PBREnvshaders("Shaders/VertexPBR", "Shaders/fPBRspec");
 
     screenShaders.UseShaderProgramm();
     screenShaders.IntUniform("screenTexture", 1);
@@ -88,31 +177,14 @@ int process()
     glm::vec3 lightColor1 = glm::vec3(1.0f, 1.0f, 1.0f);
     int currLight = 1;
 
-    glm::vec3 currPos[] =
+    std::vector<glm::vec3> currPos =
     { glm::vec3(0.0f,  0.0f, 0.0f),
       glm::vec3(4.0f,  0.0f, 0.0f), 
       glm::vec3(0.0f,  0.0f, 4.0f),
       glm::vec3(4.0f,  0.0f, 4.0f), };
 
-    PBRshaders.UseShaderProgramm();
-    PBRshaders.IntUniform("albedoMap", 1);
-    PBRshaders.IntUniform("normalMap", 2);
-    PBRshaders.IntUniform("metallicMap", 3);
-    PBRshaders.IntUniform("roughnessMap", 4);
-
-    PBRshaders.IntUniform("irradianceMap", 5);
-    PBRshaders.IntUniform("prefilterMap", 6);
-    PBRshaders.IntUniform("brdfLUT", 7);
-
-    PBREnvshaders.UseShaderProgramm();
-    PBREnvshaders.IntUniform("albedoMap", 1);
-    PBREnvshaders.IntUniform("normalMap", 2);
-    PBREnvshaders.IntUniform("metallicMap", 3);
-    PBREnvshaders.IntUniform("roughnessMap", 4);
-
-    PBREnvshaders.IntUniform("irradianceMap", 5);
-    PBREnvshaders.IntUniform("prefilterMap", 6);
-    PBREnvshaders.IntUniform("brdfLUT", 7);
+    render.activePBRmaps(PBRshaders);
+    render.activePBRmaps(PBREnvshaders);
 
     render.createSkybox(cubeShaders, backShaders, "PBR/env.hdr");
     render.IBLdiffuse(convShaders);
@@ -180,267 +252,31 @@ int process()
 
         if (preRender)
         {
-            //First sphere
-            render.createEnvFramebuffer();
-            render.createEnvMap(0);
-            render.setCaptureViews(currPos[0]);
-            viewPos = currPos[0];
-            for (unsigned i = 0; i < 6; ++i)
-            {
-                render.sideInit();
-                render.saveEnvMapSide(screenShaders, i, 0);
+            PBRshaders.UseShaderProgramm();
+            PBRshaders.vec3Uniform("lights[0].color", lightColor1);
+            PBRshaders.vec3Uniform("lights[0].pos", lightPos1);
+            PBRshaders.vec3Uniform("lights[0].atten", 1.0f, 0.045f, 0.0075f);
+            PBRshaders.FloatUniform("lights[0].diff", 1.0f);
+            PBRshaders.FloatUniform("lights[0].spec", 0.9f);
 
-                glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            render.objectPreRender(0, currPos, texturePack, 
+                                      PBRshaders, backEnvShaders, 
+                                      convEnvShaders, prefEnvShaders, BRDFEnvShaders);
 
-                PBREnvshaders.UseShaderProgramm();
+            render.objectPreRender(1, currPos, texturePack,
+                                      PBRshaders, backEnvShaders,
+                                      convEnvShaders, prefEnvShaders, BRDFEnvShaders);
 
-                glm::mat4 model = glm::mat4(1.0f);
-                view = render.getCaptureView(i);
-                proj = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
+            render.objectPreRender(2, currPos, texturePack,
+                                      PBRshaders, backEnvShaders,
+                                      convEnvShaders, prefEnvShaders, BRDFEnvShaders);
 
-                PBREnvshaders.mat4Uniform("proj", proj);
-                PBREnvshaders.mat4Uniform("view", view);
-                PBREnvshaders.vec3Uniform("viewPos", viewPos);
+            render.objectPreRender(3, currPos, texturePack,
+                                      PBRshaders, backEnvShaders,
+                                      convEnvShaders, prefEnvShaders, BRDFEnvShaders);
 
-                PBREnvshaders.vec3Uniform("lights[0].color", lightColor1);
-                PBREnvshaders.vec3Uniform("lights[0].pos", lightPos1);
-                PBREnvshaders.vec3Uniform("lights[0].atten", 1.0f, 0.045f, 0.0075f);
-                PBREnvshaders.FloatUniform("lights[0].diff", 1.0f);
-                PBREnvshaders.FloatUniform("lights[0].spec", 0.9f);
-
-                glm::vec3 Pos = glm::vec3(currPos[1]);
-                model = glm::mat4(1.0f);
-                model = glm::translate(model, Pos);                
-                PBREnvshaders.mat4Uniform("model", model);
-                render.activePBRtextures(marbleTexture);
-                render.IBLactive(PBREnvshaders);
-                render.sphereRender();
-
-                Pos = glm::vec3(currPos[2]);
-                model = glm::mat4(1.0f);
-                model = glm::translate(model, Pos);
-                PBREnvshaders.mat4Uniform("model", model);
-                render.activePBRtextures(goldTexture);
-                render.IBLactive(PBREnvshaders);
-                render.sphereRender();
-
-                Pos = glm::vec3(currPos[3]);
-                model = glm::mat4(1.0f);
-                model = glm::translate(model, Pos);
-                PBREnvshaders.mat4Uniform("model", model);
-                render.activePBRtextures(ceramicTexture);
-                render.IBLactive(PBREnvshaders);
-                render.sphereRender();
-
-                //Skybox render                               
-                backEnvShaders.UseShaderProgramm();
-                backEnvShaders.mat4Uniform("view", view);
-                backEnvShaders.mat4Uniform("proj", proj);
-                render.envRender(backEnvShaders);
-            }
-
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
-            render.createEnvDiffuse(convEnvShaders, currPos[0], 0);
-            render.createEnvSpec(prefEnvShaders, currPos[0], 0);
-            render.createEnvBRDF(BRDFEnvShaders, currPos[0], 0);
-
-            //Second sphere
-            render.createEnvFramebuffer();
-            render.createEnvMap(1);
-            render.setCaptureViews(currPos[1]);
-            viewPos = currPos[1];
-            for (unsigned i = 0; i < 6; ++i)
-            {
-                render.sideInit();
-                render.saveEnvMapSide(screenShaders, i, 1);
-
-                glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-                PBREnvshaders.UseShaderProgramm();
-
-                glm::mat4 model = glm::mat4(1.0f);
-                view = render.getCaptureView(i);
-                proj = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
-
-                PBREnvshaders.mat4Uniform("proj", proj);
-                PBREnvshaders.mat4Uniform("view", view);
-                PBREnvshaders.vec3Uniform("viewPos", viewPos);
-
-                PBREnvshaders.vec3Uniform("lights[0].color", lightColor1);
-                PBREnvshaders.vec3Uniform("lights[0].pos", lightPos1);
-                PBREnvshaders.vec3Uniform("lights[0].atten", 1.0f, 0.045f, 0.0075f);
-                PBREnvshaders.FloatUniform("lights[0].diff", 1.0f);
-                PBREnvshaders.FloatUniform("lights[0].spec", 0.9f);
-
-                glm::vec3 Pos = glm::vec3(currPos[0] - viewPos);
-                model = glm::mat4(1.0f);
-                model = glm::translate(model, Pos);
-                PBREnvshaders.mat4Uniform("model", model);
-                render.activePBRtextures(mirrorTexture);
-                render.IBLactive(PBREnvshaders);
-                render.sphereRender();
-
-                Pos = glm::vec3(currPos[2] - viewPos);
-                model = glm::mat4(1.0f);
-                model = glm::translate(model, Pos);
-                PBREnvshaders.mat4Uniform("model", model);
-                render.activePBRtextures(goldTexture);
-                render.IBLactive(PBREnvshaders);
-                render.sphereRender();
-
-                Pos = glm::vec3(currPos[3] - viewPos);
-                model = glm::mat4(1.0f);
-                model = glm::translate(model, Pos);
-                PBREnvshaders.mat4Uniform("model", model);
-                render.activePBRtextures(ceramicTexture);
-                render.IBLactive(PBREnvshaders);
-                render.sphereRender();
-
-                //Skybox render
-                backEnvShaders.UseShaderProgramm();
-                backEnvShaders.mat4Uniform("view", view);
-                backEnvShaders.mat4Uniform("proj", proj);
-                render.envRender(backEnvShaders);
-            }
-
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
-            render.createEnvDiffuse(convEnvShaders, currPos[1], 1);
-            render.createEnvSpec(prefEnvShaders, currPos[1], 1);
-            render.createEnvBRDF(BRDFEnvShaders, currPos[1], 1);
-
-
-            //Third sphere
-            render.createEnvFramebuffer();
-            render.createEnvMap(2);
-            render.setCaptureViews(currPos[2]);
-            viewPos = currPos[2];
-            for (unsigned i = 0; i < 6; ++i)
-            {
-                render.sideInit();
-                render.saveEnvMapSide(screenShaders, i, 2);
-
-                glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-                PBREnvshaders.UseShaderProgramm();
-
-                glm::mat4 model = glm::mat4(1.0f);
-                view = render.getCaptureView(i);
-                proj = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
-
-                PBREnvshaders.mat4Uniform("proj", proj);
-                PBREnvshaders.mat4Uniform("view", view);
-                PBREnvshaders.vec3Uniform("viewPos", viewPos);
-
-                PBREnvshaders.vec3Uniform("lights[0].color", lightColor1);
-                PBREnvshaders.vec3Uniform("lights[0].pos", lightPos1);
-                PBREnvshaders.vec3Uniform("lights[0].atten", 1.0f, 0.045f, 0.0075f);
-                PBREnvshaders.FloatUniform("lights[0].diff", 1.0f);
-                PBREnvshaders.FloatUniform("lights[0].spec", 0.9f);
-
-                glm::vec3 Pos = glm::vec3(currPos[0] - viewPos);
-                model = glm::mat4(1.0f);
-                model = glm::translate(model, Pos);
-                PBREnvshaders.mat4Uniform("model", model);
-                render.activePBRtextures(mirrorTexture);
-                render.IBLactive(PBREnvshaders);
-                render.sphereRender();
-
-                Pos = glm::vec3(currPos[1] - viewPos);
-                model = glm::mat4(1.0f);
-                model = glm::translate(model, Pos);
-                PBREnvshaders.mat4Uniform("model", model);
-                render.activePBRtextures(marbleTexture);
-                render.IBLactive(PBREnvshaders);
-                render.sphereRender();
-
-                Pos = glm::vec3(currPos[3] - viewPos);
-                model = glm::mat4(1.0f);
-                model = glm::translate(model, Pos);
-                PBREnvshaders.mat4Uniform("model", model);
-                render.activePBRtextures(ceramicTexture);
-                render.IBLactive(PBREnvshaders);
-                render.sphereRender();
-
-                //Skybox render
-                backEnvShaders.UseShaderProgramm();
-                backEnvShaders.mat4Uniform("view", view);
-                backEnvShaders.mat4Uniform("proj", proj);
-                render.envRender(backEnvShaders);
-            }
-
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
-            render.createEnvDiffuse(convEnvShaders, currPos[2], 2);
-            render.createEnvSpec(prefEnvShaders, currPos[2], 2);
-            render.createEnvBRDF(BRDFEnvShaders, currPos[2], 2);
-
-            //Fourth sphere
-            render.createEnvFramebuffer();
-            render.createEnvMap(3);
-            render.setCaptureViews(currPos[3]);
-            viewPos = currPos[3];
-            for (unsigned i = 0; i < 6; ++i)
-            {
-                render.sideInit();
-                render.saveEnvMapSide(screenShaders, i, 3);
-
-                glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-                PBREnvshaders.UseShaderProgramm();
-
-                glm::mat4 model = glm::mat4(1.0f);
-                view = render.getCaptureView(i);
-                proj = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
-
-                PBREnvshaders.mat4Uniform("proj", proj);
-                PBREnvshaders.mat4Uniform("view", view);
-                PBREnvshaders.vec3Uniform("viewPos", viewPos);
-
-                PBREnvshaders.vec3Uniform("lights[0].color", lightColor1);
-                PBREnvshaders.vec3Uniform("lights[0].pos", lightPos1);
-                PBREnvshaders.vec3Uniform("lights[0].atten", 1.0f, 0.045f, 0.0075f);
-                PBREnvshaders.FloatUniform("lights[0].diff", 1.0f);
-                PBREnvshaders.FloatUniform("lights[0].spec", 0.9f);
-
-                glm::vec3 Pos = glm::vec3(currPos[0] - viewPos);
-                model = glm::mat4(1.0f);
-                model = glm::translate(model, Pos);
-                PBREnvshaders.mat4Uniform("model", model);
-                render.activePBRtextures(mirrorTexture);
-                render.IBLactive(PBREnvshaders);
-                render.sphereRender();
-
-                Pos = glm::vec3(currPos[1] - viewPos);
-                model = glm::mat4(1.0f);
-                model = glm::translate(model, Pos);
-                PBREnvshaders.mat4Uniform("model", model);
-                render.activePBRtextures(marbleTexture);
-                render.IBLactive(PBREnvshaders);
-                render.sphereRender();
-
-                Pos = glm::vec3(currPos[2] - viewPos);
-                model = glm::mat4(1.0f);
-                model = glm::translate(model, Pos);
-                PBREnvshaders.mat4Uniform("model", model);
-                render.activePBRtextures(goldTexture);
-                render.IBLactive(PBREnvshaders);
-                render.sphereRender();
-
-                //Skybox render
-                backEnvShaders.UseShaderProgramm();
-                backEnvShaders.mat4Uniform("view", view);
-                backEnvShaders.mat4Uniform("proj", proj);
-                render.envRender(backEnvShaders);
-            }
-
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
-            render.createEnvDiffuse(convEnvShaders, currPos[3], 3);
-            render.createEnvSpec(prefEnvShaders, currPos[3], 3);
-            render.createEnvBRDF(BRDFEnvShaders, currPos[3], 3);
-
+            
+            render.shadowMapCreate();          
             preRender = false;
         }
 
@@ -456,56 +292,24 @@ int process()
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glEnable(GL_DEPTH_TEST);
 
-        PBRshaders.UseShaderProgramm();
+        PBREnvshaders.UseShaderProgramm();
 
-        glm::mat4 model = glm::mat4(1.0f);
         proj = glm::perspective(glm::radians(45.0f), 1920.0f / 1080.0f, 0.1f, 100.0f);
 
-        PBRshaders.mat4Uniform("proj", proj);
-        PBRshaders.mat4Uniform("view", view);
-        PBRshaders.vec3Uniform("viewPos", viewPos);
+        PBREnvshaders.mat4Uniform("proj", proj);
+        PBREnvshaders.mat4Uniform("view", view);
+        PBREnvshaders.vec3Uniform("viewPos", viewPos);
 
-        PBRshaders.vec3Uniform("lights[0].color", lightColor1);
-        PBRshaders.vec3Uniform("lights[0].pos", lightPos1);
-        PBRshaders.vec3Uniform("lights[0].atten", 1.0f, 0.045f, 0.0075f);
-        PBRshaders.FloatUniform("lights[0].diff", 1.0f);
-        PBRshaders.FloatUniform("lights[0].spec", 0.9f);
+        PBREnvshaders.vec3Uniform("lights[0].color", lightColor1);
+        PBREnvshaders.vec3Uniform("lights[0].pos", lightPos1);
+        PBREnvshaders.vec3Uniform("lights[0].atten", 1.0f, 0.045f, 0.0075f);
+        PBREnvshaders.FloatUniform("lights[0].diff", 1.0f);
+        PBREnvshaders.FloatUniform("lights[0].spec", 0.9f);
 
-        glm::vec3 Pos = glm::vec3(currPos[0]);
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, Pos);
-        PBRshaders.mat4Uniform("model", model);
-        render.activePBRtextures(mirrorTexture);
-        render.IBLpbrEnv(PBRshaders, 0);
-        //render.IBLactive(PBRshaders);
-        render.sphereRender();
-
-        Pos = glm::vec3(currPos[1]);
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, Pos);
-        PBRshaders.mat4Uniform("model", model);
-        render.activePBRtextures(marbleTexture);
-        render.IBLpbrEnv(PBRshaders, 1);
-        //render.IBLactive(PBRshaders);
-        render.sphereRender();
-
-        Pos = glm::vec3(currPos[2]); 
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, Pos); 
-        PBRshaders.mat4Uniform("model", model);
-        render.activePBRtextures(goldTexture);
-        render.IBLpbrEnv(PBRshaders, 2);
-        //render.IBLactive(PBRshaders);
-        render.sphereRender();
-
-        Pos = glm::vec3(currPos[3]);
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, Pos);
-        PBRshaders.mat4Uniform("model", model);
-        render.activePBRtextures(ceramicTexture);
-        render.IBLpbrEnv(PBRshaders, 3);
-        //render.IBLactive(PBRshaders);
-        render.sphereRender();
+        render.objectIBLEnvsphere(PBREnvshaders, 0, currPos[0], mirrorTexture);
+        render.objectIBLEnvsphere(PBREnvshaders, 1, currPos[1], marbleTexture);
+        render.objectIBLEnvsphere(PBREnvshaders, 2, currPos[2], goldTexture);
+        render.objectIBLEnvsphere(PBREnvshaders, 3, currPos[3], ceramicTexture);
 
         //Lighting render
 

@@ -264,6 +264,18 @@ void objectsRender::activePBRtextures(std::vector<unsigned> textures)
     }
 }
 
+void objectsRender::activePBRmaps(shader pbrShader)
+{
+    pbrShader.UseShaderProgramm();
+    pbrShader.IntUniform("albedoMap", 1);
+    pbrShader.IntUniform("normalMap", 2);
+    pbrShader.IntUniform("metallicMap", 3);
+    pbrShader.IntUniform("roughnessMap", 4);
+
+    pbrShader.IntUniform("irradianceMap", 5);
+    pbrShader.IntUniform("prefilterMap", 6);
+    pbrShader.IntUniform("brdfLUT", 7);
+}
 
 void objectsRender::createSkybox(shader cubeShader, shader envShaders, char const* HDRpath)
 {
@@ -519,6 +531,12 @@ void objectsRender::sideRender(shader screenShader)
 }
 
 
+void objectsRender::setMapSizes(unsigned size1, unsigned size2)
+{
+    mapSizes[0] = size1;
+    mapSizes[1] = size2;
+}
+
 void objectsRender::createMapSet(unsigned k)
 {
     for (unsigned i = 0; i < k; ++i)
@@ -551,7 +569,7 @@ void objectsRender::createEnvFramebuffer()
 
     glGenRenderbuffers(1, &rbo);
     glBindRenderbuffer(GL_RENDERBUFFER, rbo);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, 1024, 1024);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, mapSizes[0], mapSizes[1]);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
@@ -565,7 +583,7 @@ void objectsRender::createEnvMap(unsigned nObj)
 
     for (unsigned int i = 0; i < 6; ++i)
     {
-        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, 1024, 1024, 0, GL_RGB, GL_FLOAT, nullptr);
+        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, mapSizes[0], mapSizes[1], 0, GL_RGB, GL_FLOAT, nullptr);
     }
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -575,21 +593,9 @@ void objectsRender::createEnvMap(unsigned nObj)
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void objectsRender::createEnvMapSide(shader screenShader, unsigned nSide, unsigned nObj)
+void objectsRender::saveEnvMapSide(unsigned nSide, unsigned nObj)
 {
-    glViewport(0, 0, 1024, 1024);
-    glBindFramebuffer(GL_FRAMEBUFFER, screenFramebuffer);
-
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + nSide, Maps[nObj][0], 0);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    sideRender(screenShader);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-}
-
-void objectsRender::saveEnvMapSide(shader screenShader, unsigned nSide, unsigned nObj)
-{
-    glViewport(0, 0, 1024, 1024);
+    glViewport(0, 0, mapSizes[0], mapSizes[1]);
     glBindFramebuffer(GL_FRAMEBUFFER, screenFramebuffer);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + nSide, Maps[nObj][0], 0);
 }
@@ -600,7 +606,7 @@ void objectsRender::createEnvDiffuse(shader convShader, glm::vec3 viewPos, unsig
     glBindTexture(GL_TEXTURE_CUBE_MAP, Maps[nObj][1]);
     for (unsigned int i = 0; i < 6; ++i)
     {
-        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, 128, 128, 0, GL_RGB, GL_FLOAT, nullptr);
+        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, (mapSizes[0] / 4), (mapSizes[1] / 4), 0, GL_RGB, GL_FLOAT, nullptr);
     }
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -610,7 +616,7 @@ void objectsRender::createEnvDiffuse(shader convShader, glm::vec3 viewPos, unsig
 
     glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
     glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, 256, 256);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, (mapSizes[0] / 4), (mapSizes[1] / 4));
 
     convShader.UseShaderProgramm();
     convShader.IntUniform("envMap", 0);
@@ -618,7 +624,7 @@ void objectsRender::createEnvDiffuse(shader convShader, glm::vec3 viewPos, unsig
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_CUBE_MAP, Maps[nObj][0]);
 
-    glViewport(0, 0, 256, 256);
+    glViewport(0, 0, (mapSizes[0] / 4), (mapSizes[1] / 4));
     glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
     setCaptureViews(viewPos);
 
@@ -638,7 +644,7 @@ void objectsRender::createEnvSpec(shader prefShader, glm::vec3 viewPos, unsigned
     glBindTexture(GL_TEXTURE_CUBE_MAP, Maps[nObj][2]);
     for (unsigned int i = 0; i < 6; ++i)
     {
-        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, 128, 128, 0, GL_RGB, GL_FLOAT, nullptr);
+        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, (mapSizes[0] / 4), (mapSizes[1] / 4), 0, GL_RGB, GL_FLOAT, nullptr);
     }
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -658,8 +664,9 @@ void objectsRender::createEnvSpec(shader prefShader, glm::vec3 viewPos, unsigned
     unsigned int maxMipLevels = 5;
     for (unsigned int mip = 0; mip < maxMipLevels; ++mip)
     {
-        unsigned int mipWidth = 128 * std::pow(0.5, mip);
-        unsigned int mipHeight = 128 * std::pow(0.5, mip);
+        unsigned int mipWidth = (mapSizes[0] / 4) * std::pow(0.5, mip);
+        unsigned int mipHeight = (mapSizes[1] / 4) * std::pow(0.5, mip);
+
         glBindRenderbuffer(GL_RENDERBUFFER, rbo);
         glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, mipWidth, mipHeight);
         glViewport(0, 0, mipWidth, mipHeight);
@@ -684,7 +691,7 @@ void objectsRender::createEnvBRDF(shader brdfShader, glm::vec3 viewPos, unsigned
     glGenTextures(1, &Maps[nObj][3]);
 
     glBindTexture(GL_TEXTURE_2D, Maps[nObj][3]);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RG16F, 1024, 1024, 0, GL_RG, GL_FLOAT, 0);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RG16F, (mapSizes[0] / 2), (mapSizes[1] / 2), 0, GL_RG, GL_FLOAT, 0);
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -693,17 +700,17 @@ void objectsRender::createEnvBRDF(shader brdfShader, glm::vec3 viewPos, unsigned
 
     glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
     glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, 1024, 1024);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, mapSizes[0] / 2, mapSizes[1] / 2);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, Maps[nObj][3], 0);
 
-    glViewport(0, 0, 1024, 1024);
+    glViewport(0, 0, (mapSizes[0] / 2), (mapSizes[1] / 2));
     brdfShader.UseShaderProgramm();
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     quadRender();
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void objectsRender::IBLpbrEnv(shader pbrShader, unsigned nObj)
+void objectsRender::IBLEnvactive(shader pbrShader, unsigned nObj)
 {
     pbrShader.UseShaderProgramm();
     if (useAO)
@@ -731,4 +738,127 @@ void objectsRender::testCubeMapRender(unsigned nObj)
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_CUBE_MAP, Maps[nObj][0]);
     cubeRender();
+}
+
+
+void objectsRender::shadowMapCreate(glm::vec3 lightPos, shader shadowShader)
+{
+    glGenFramebuffers(1, &shadowFBO);
+
+    unsigned int shadowMap;
+    glGenTextures(1, &shadowMap);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, shadowMap);
+    for (unsigned int i = 0; i < 6; ++i)
+        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT, mapSizes[0], mapSizes[1], 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, shadowFBO);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, shadowMap, 0);
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+
+    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    float near_plane = 1.0f;
+    float far_plane = 25.0f;
+    glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), (float)mapSizes[0] / (float)mapSizes[1], near_plane, far_plane);
+    std::vector<glm::mat4> shadowTransforms;
+
+    setCaptureViews(lightPos);
+    for (unsigned i = 0; i < 6; ++i)
+        shadowTransforms.push_back(shadowProj * captureViews[i]);
+
+    glViewport(0, 0, mapSizes[0], mapSizes[1]);
+    glBindFramebuffer(GL_FRAMEBUFFER, shadowFBO);
+    glClear(GL_DEPTH_BUFFER_BIT);
+
+    shadowShader.UseShaderProgramm();
+
+    for (unsigned int i = 0; i < 6; ++i)
+        shadowShader.mat4Uniform("shadowMatrices[" + std::to_string(i) + "]", shadowTransforms[i]);
+    shadowShader.FloatUniform("far_plane", far_plane);
+    shadowShader.vec3Uniform("lightPos", lightPos);
+}
+
+
+void objectsRender::addTextureToPack(std::vector<unsigned> texture)
+{
+    TexturePack.push_back(texture);
+}
+
+void objectsRender::objectIBLsphere(shader IBLShader, glm::vec3 Pos, std::vector<unsigned> textures)
+{
+    glm::mat4 model = glm::mat4(1.0f);
+    model = glm::translate(model, Pos);
+    IBLShader.mat4Uniform("model", model);
+    activePBRtextures(textures);
+    IBLactive(IBLShader);
+    sphereRender();
+}
+
+void objectsRender::objectIBLEnvsphere(shader IBLShader, unsigned nObj, glm::vec3 Pos, std::vector<unsigned> textures)
+{
+    glm::mat4 model = glm::mat4(1.0f);
+    model = glm::translate(model, Pos);
+    IBLShader.mat4Uniform("model", model);
+    activePBRtextures(textures);
+    IBLEnvactive(IBLShader, nObj);
+    sphereRender();
+}
+
+void objectsRender::objectPreRender(unsigned nCurr, std::vector<glm::vec3> positions,
+                                    std::vector<std::vector<unsigned>> texturePack,
+                                    shader pbrShader, shader backShader,
+                                    shader convShader, shader prefShader, shader BRDFShader)
+{
+    unsigned count = positions.size();
+    createEnvFramebuffer();
+    createEnvMap(nCurr);
+    setCaptureViews(positions[nCurr]);
+
+    glm::mat4 view;
+    glm::mat4 proj = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
+    glm::vec3 viewPos = positions[nCurr];
+
+    for (unsigned i = 0; i < 6; ++i)
+    {
+        sideInit();
+        saveEnvMapSide(i, nCurr);
+
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        pbrShader.UseShaderProgramm();
+
+        glm::mat4 model = glm::mat4(1.0f);
+        view = getCaptureView(i);
+      
+        pbrShader.mat4Uniform("view", view);
+        pbrShader.mat4Uniform("proj", proj);
+        pbrShader.vec3Uniform("viewPos", viewPos);
+
+        unsigned curr;
+        for (unsigned i = 1; i < count; ++i)
+        {
+            curr = (i + nCurr) % count;
+            objectIBLsphere(pbrShader, positions[curr] - viewPos, texturePack[curr]);
+        }
+                              
+        backShader.UseShaderProgramm();
+        backShader.mat4Uniform("view", view);
+        backShader.mat4Uniform("proj", proj);
+        envRender(backShader);
+    }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    createEnvDiffuse(convShader, positions[nCurr], nCurr);
+    createEnvSpec(prefShader, positions[nCurr], nCurr);
+    createEnvBRDF(BRDFShader, positions[nCurr], nCurr);
 }

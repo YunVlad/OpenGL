@@ -19,7 +19,6 @@ class objectsRender
 public:
 	objectsRender();
     ~objectsRender();
-    void setAOtrue();
 
 
     //Objects part
@@ -38,6 +37,8 @@ public:
     unsigned int loadHDR(std::string path);
     std::vector<unsigned> loadPBRtextures(std::string path);
     void activePBRtextures(std::vector<unsigned> textures);
+    void setAOtrue();
+    void activePBRmaps(shader pbrShader);
 
 
     //IBL part
@@ -65,18 +66,31 @@ public:
     void setCaptureViews(glm::vec3 pos);
     glm::mat4 getCaptureView(unsigned n);
 
-
+    void setMapSizes(unsigned size1, unsigned size2);
     void createEnvFramebuffer();
     void createEnvMap(unsigned nObj);
-    void createEnvMapSide(shader screenShader, unsigned nSide, unsigned nObj);
-    void saveEnvMapSide(shader screenShader, unsigned nSide, unsigned nObj);
+    void saveEnvMapSide(unsigned nSide, unsigned nObj);
     void createEnvDiffuse(shader convShader, glm::vec3 viewPos, unsigned nObj);
     void createEnvSpec(shader prefShader, glm::vec3 viewPos, unsigned nObj);
     void createEnvBRDF(shader brdfShader, glm::vec3 viewPos, unsigned nObj);
-    void IBLpbrEnv(shader pbrShader, unsigned nObj);
+    void IBLEnvactive(shader pbrShader, unsigned nObj);
     void testCubeMapRender(unsigned nObj);
 
-    std::vector<std::vector<unsigned>> Maps;
+
+    //Shadow Map Part
+    void shadowMapCreate(glm::vec3 lightPos, shader shadowShader);
+
+
+    //Objects-render part
+    void addTextureToPack(std::vector<unsigned>);
+
+    void objectIBLsphere(shader IBLShader, glm::vec3 Pos, std::vector<unsigned> textures);
+    void objectIBLEnvsphere(shader IBLShader, unsigned nObj, glm::vec3 Pos, std::vector<unsigned> textures);
+    void objectPreRender(unsigned nCurr, std::vector<glm::vec3> positions,
+                         std::vector<std::vector<unsigned>> texturePack,
+                         shader pbrShader, shader backShader,
+                         shader convShader, shader prefShader, shader BRDFShader);
+
 
 private:
     int scrWidth = 1920, scrHeight = 1080;
@@ -89,6 +103,12 @@ private:
     unsigned textureBuffer;
     unsigned rbo;
 
+    unsigned shadowMap;
+    unsigned shadowFBO;
+
+    unsigned mapSizes[2] = { 1024, 1024 };
+    std::vector<std::vector<unsigned>> Maps;
+    std::vector<std::vector<unsigned>> TexturePack;
     
 
     float PI = 3.14159;
@@ -142,7 +162,6 @@ private:
     };
 
     const float plateVertices[48] =
-
     {
             -1.0f, 0.0f, 1.0f,  0.0f, 1.0f, 0.0f, 0.0f, 10.0f,
             -1.0f, 0.0f,-1.0f,  0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
